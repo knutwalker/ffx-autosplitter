@@ -1,0 +1,33 @@
+[package]
+name = "ffx-autosplitter"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+asr = { git = "https://github.com/LiveSplit/asr", features = [
+    "derive",
+    "signature",
+    "integer-vars",
+] }
+bytemuck = { version = "1", features = ["derive", "min_const_generics"] }
+num_enum = { version = "0.7.3", default-features = false }
+strum = { version = "0.27.2", default-features = false, features = ["derive"] }
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = true
+
+[profile.release.build-override]
+opt-level = 2
+
+[lints.clippy]
+bool-comparison = "allow"
+collapsible-if = "allow"
+needless-return = "allow"
+manual-div-ceil = "allow"

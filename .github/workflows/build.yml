@@ -4,9 +4,9 @@ on:
   pull_request:
   push:
     branches:
-      - 'main'
+      - "main"
     tags:
-      - '*'
+      - "*"
   workflow_dispatch:
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2.2.2
         with:
-          files: target/wasm32-unknown-unknown/release/ff1pr_autosplitter.wasm
+          files: target/wasm32-unknown-unknown/release/ffx_autosplitter.wasm
           name: Latest
           tag_name: latest
           body: This contains the latest version of the auto splitter.
