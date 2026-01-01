@@ -40,9 +40,9 @@ enum Splits {
     Klikk,
     Tros,
     Lagoon,
-    Valefor,
+    BesaidVillage,
     Kimahri,
-    Besaid,
+    BesaidRoad,
     Echuilles,
     Geneaux,
     Kilika,
@@ -578,9 +578,9 @@ impl Settings {
             klikk,
             tros,
             lagoon,
-            besaid_village: valefor,
+            besaid_village,
             kimahri,
-            besaid_road: besaid,
+            besaid_road,
             echuilles,
             geneaux,
             kilika,
@@ -702,9 +702,9 @@ impl Settings {
             Splits::Klikk => klikk,
             Splits::Tros => tros,
             Splits::Lagoon => lagoon,
-            Splits::Valefor => valefor,
+            Splits::BesaidVillage => besaid_village,
             Splits::Kimahri => kimahri,
-            Splits::Besaid => besaid,
+            Splits::BesaidRoad => besaid_road,
             Splits::Echuilles => echuilles,
             Splits::Geneaux => geneaux,
             Splits::Kilika => kilika,
@@ -1448,8 +1448,8 @@ impl Level {
         }
         ControlFlow::Break(match (old.0, self.0) {
             (Self::LAGOON, Self::BESAID_PROMONTORY | Self::BESAID_VILLAGE_ROAD) => Splits::Lagoon, // story 119->124
-            (Self::BESAID_VILLAGE, Self::BESAID_VILLAGE_ROAD) => Splits::Valefor, // story == 200
-            (Self::BESAID_END_ROAD, Self::BESAID_BEACH) => Splits::Besaid,        // story == 217
+            (Self::BESAID_VILLAGE, Self::BESAID_VILLAGE_ROAD) => Splits::BesaidVillage, // story == 200
+            (Self::BESAID_END_ROAD, Self::BESAID_BEACH) => Splits::BesaidRoad, // story == 217
             #[cfg(testing)]
             (Self::KILIKA_FAYTH, Self::KILIKA_TEMPLE) => Splits::Ifrit, // story 346 -> 348
             (Self::KILIKA_WOODS, Self::KILIKA_RESIDENTIAL_AREA) => Splits::Kilika,
