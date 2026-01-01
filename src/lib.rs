@@ -47,7 +47,8 @@ enum Splits {
     Geneaux,
     Kilika,
     Oblitzerator,
-    Blitzball,
+    BeforeBlitzball,
+    BlitzballDone,
     Garuda,
     MiihenRoad,
     ChocoboEater,
@@ -228,9 +229,13 @@ pub struct Settings {
     #[default = true]
     oblitzerator: bool,
 
+    /// Before Blitzball
+    #[default = false]
+    before_blitzball: bool,
+
     /// Blitzball Complete
     #[default = true]
-    blitzball: bool,
+    blitzball_done: bool,
 
     /// Garuda
     #[default = true]
@@ -585,7 +590,8 @@ impl Settings {
             geneaux,
             kilika,
             oblitzerator,
-            blitzball,
+            before_blitzball,
+            blitzball_done,
             garuda,
             miihen_road,
             chocobo_eater,
@@ -709,7 +715,8 @@ impl Settings {
             Splits::Geneaux => geneaux,
             Splits::Kilika => kilika,
             Splits::Oblitzerator => oblitzerator,
-            Splits::Blitzball => blitzball,
+            Splits::BeforeBlitzball => before_blitzball,
+            Splits::BlitzballDone => blitzball_done,
             Splits::Garuda => garuda,
             Splits::MiihenRoad => miihen_road,
             Splits::ChocoboEater => chocobo_eater,
@@ -1125,7 +1132,7 @@ impl Running {
         }
 
         let level = *read.level();
-        level.split(level.old)?;
+        level.split(level.old, &mut read)?;
 
         let battle_state = *read.battle_state();
 
@@ -1389,6 +1396,7 @@ impl Level {
     const DJOSE_OUTSIDE: u32 = 82;
     #[cfg(testing)]
     const LUCA_DOCK_1: u32 = 85;
+    const LUCA_DOCK_5: u32 = 89;
     #[cfg(testing)]
     const DJOSE_FAYTH: u32 = 90;
     const DJOSE_HIGHROAD: u32 = 93;
@@ -1400,7 +1408,6 @@ impl Level {
     #[cfg(testing)]
     const MACALANIA_TEMPLE: u32 = 106;
     const MACALANIA_WOODS_SOUTH: u32 = 110;
-    #[cfg(testing)]
     const LUCA_MAIN: u32 = 123;
     const HIGHROAD_CENTRAL: u32 = 127;
     const HOME_ENTRANCE: u32 = 130;
@@ -1442,7 +1449,7 @@ impl Level {
         self.0 == Self::NEW_GAME
     }
 
-    fn split(self, old: Self) -> Splitter {
+    fn split(self, old: Self, read: &mut Read<'_>) -> Splitter {
         if self == old {
             return NO_SPLIT;
         }
@@ -1454,8 +1461,11 @@ impl Level {
             (Self::KILIKA_FAYTH, Self::KILIKA_TEMPLE) => Splits::Ifrit, // story 346 -> 348
             (Self::KILIKA_WOODS, Self::KILIKA_RESIDENTIAL_AREA) => Splits::Kilika,
             #[cfg(testing)]
-            (Self::LUCA_MAIN, Self::LUCA_DOCK_1) => Splits::Luca, // story = 492
-            (Self::STADIUM_POOL, Self::STADIUM_STANDS) => Splits::Blitzball,
+            (Self::LUCA_MAIN, Self::LUCA_DOCK_1) if read.is_at(Progress::WORKERS) => Splits::Luca,
+            (Self::LUCA_DOCK_5, Self::LUCA_MAIN) if read.is_at(Progress::BLITZBALL) => {
+                Splits::BeforeBlitzball
+            }
+            (Self::STADIUM_POOL, Self::STADIUM_STANDS) => Splits::BlitzballDone,
             (Self::HIGHROAD_CENTRAL, Self::HIGHROAD_AGENCY) => Splits::MiihenRoad,
             (Self::HIGHROAD_NORTH_END, Self::MUSHROOM_ROCK_ROAD) => Splits::OldRoad,
             (Self::MUSHROOM_ROCK_ROAD, Self::MUSHROOM_ROCK_AFTERMATH) => Splits::MrrSkip,
@@ -1544,6 +1554,7 @@ impl Progress {
     #[cfg(testing)]
     const WORKERS: u32 = 492;
     const OBLITZERATOR: u32 = 502;
+    const BLITZBALL: u32 = 514;
     #[cfg(testing)]
     const SAHAGINS: u32 = 583;
     const GARUDA: u32 = 600;
@@ -1654,40 +1665,6 @@ impl Progress {
         })
     }
 
-    #[cfg(testing)]
-    fn split_workers(self, battle_state: Pair<BattleState>, read: &mut Read<'_>) -> Splitter {
-        if self.0 == Self::WORKERS
-            && battle_state.is_over() == false
-            && read.map_id().current == 14
-            && read.cutscene_type().current == 27
-            && read.formation_id().is(0, 0)
-            && read.hp_enemy_a().changed_from_to(&0, &300)
-        {
-            return ControlFlow::Break(Splits::Workers31);
-        }
-
-        return NO_SPLIT;
-    }
-
-    #[cfg(testing)]
-    fn split_sahagins(self, battle_state: Pair<BattleState>, read: &mut Read<'_>) -> Splitter {
-        if self.0 == Self::SAHAGINS
-            && battle_state.is_over() == false
-            && read.map_id().current == 16
-            && read.cutscene_type().current == 24
-        {
-            if read.hp_enemy_a().changed_to(&0)
-                || read.hp_enemy_b().changed_to(&0)
-                || read.hp_enemy_c().changed_to(&0)
-                || read.hp_enemy_d().changed_to(&0)
-            {
-                return ControlFlow::Break(Splits::Sahagins1);
-            }
-        }
-
-        return NO_SPLIT;
-    }
-
     fn split_advance(self, old: Self, read: &mut Read<'_>) -> Splitter {
         if self.0 == Self::ISAARU {
             if read.cutscene_type().changed_from_to(&18, &257) {
@@ -1722,6 +1699,44 @@ impl Progress {
 
     fn is_encounter(read: &mut Read<'_>, map_id: u16, id1: u8, id2: u8) -> bool {
         return read.map_id().current == map_id && read.formation_id().is(id1, id2);
+    }
+
+    fn is(self, progress: u32) -> bool {
+        return self.0 == progress;
+    }
+
+    #[cfg(testing)]
+    fn split_workers(self, battle_state: Pair<BattleState>, read: &mut Read<'_>) -> Splitter {
+        if self.0 == Self::WORKERS
+            && battle_state.is_over() == false
+            && read.map_id().current == 14
+            && read.cutscene_type().current == 27
+            && read.formation_id().is(0, 0)
+            && read.hp_enemy_a().changed_from_to(&0, &300)
+        {
+            return ControlFlow::Break(Splits::Workers31);
+        }
+
+        return NO_SPLIT;
+    }
+
+    #[cfg(testing)]
+    fn split_sahagins(self, battle_state: Pair<BattleState>, read: &mut Read<'_>) -> Splitter {
+        if self.0 == Self::SAHAGINS
+            && battle_state.is_over() == false
+            && read.map_id().current == 16
+            && read.cutscene_type().current == 24
+        {
+            if read.hp_enemy_a().changed_to(&0)
+                || read.hp_enemy_b().changed_to(&0)
+                || read.hp_enemy_c().changed_to(&0)
+                || read.hp_enemy_d().changed_to(&0)
+            {
+                return ControlFlow::Break(Splits::Sahagins1);
+            }
+        }
+
+        return NO_SPLIT;
     }
 }
 
@@ -2113,6 +2128,10 @@ impl<'a> Read<'a> {
     fn input(&mut self) -> &Pair<Input> {
         self.input
             .get_or_insert_with(|| *self.watchers.input(self.process, self.memory))
+    }
+
+    fn is_at(&mut self, story: u32) -> bool {
+        return self.story_progression().is(story);
     }
 
     #[cfg(any(testing, debugging))]
