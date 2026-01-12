@@ -398,14 +398,29 @@ pub struct Settings {
     _test_heading: Heading,
 
     #[cfg(testing)]
-    /// FOR TESTING: Start timers when loading a save
+    /// START: Start timer when loading a save
     #[default = false]
     start_on_load: bool,
 
     #[cfg(testing)]
-    /// FOR TESTING: Reset timers when entering load menu
+    /// STARFT: Start timer when a battle starts
+    #[default = false]
+    start_on_battle: bool,
+
+    #[cfg(testing)]
+    /// START: Start timer at the beginning of Bevelle guards
+    #[default = false]
+    start_on_guards: bool,
+
+    #[cfg(testing)]
+    /// RESET: Reset timer when loading a regular save
     #[default = false]
     reset_on_load: bool,
+
+    #[cfg(testing)]
+    /// RESET: Reset timer when loading the auto save
+    #[default = false]
+    reset_on_autosave_load: bool,
 
     #[cfg(testing)]
     /// Sin's Fin
@@ -636,7 +651,13 @@ impl Settings {
             #[cfg(testing)]
                 start_on_load: _,
             #[cfg(testing)]
+                start_on_battle: _,
+            #[cfg(testing)]
+                start_on_guards: _,
+            #[cfg(testing)]
                 reset_on_load: _,
+            #[cfg(testing)]
+                reset_on_autosave_load: _,
             #[cfg(testing)]
             sinfin,
             #[cfg(testing)]
@@ -931,6 +952,40 @@ async fn main() {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+enum Action {
+    Nothing,
+    Start,
+    StartPaused,
+    Reset,
+    Split(Splits),
+}
+
+impl Action {
+    fn send(self) {
+        match self {
+            Self::Nothing => {}
+            Self::Start => {
+                log!("Timer START!");
+                timer::start();
+            }
+            Self::StartPaused => {
+                log!("Timer START!");
+                timer::start();
+                timer::pause_game_time();
+            }
+            Self::Reset => {
+                log!("Timer RESET!");
+                timer::reset();
+            }
+            Self::Split(splits) => {
+                log!("SPLIT! {:?}", splits);
+                timer::split();
+            }
+        }
+    }
+}
+
 impl State<'_> {
     fn try_connect(&mut self) -> Option<()> {
         if self.game.is_none() {
@@ -969,30 +1024,34 @@ impl State<'_> {
 
     async fn main_loop(&mut self, process: &Process, memory: &Memory) {
         loop {
-            let timer_state = timer::state();
-            match timer_state {
-                TimerState::Running | TimerState::Paused => {
-                    let running = self.timer.get_or_start();
-                    running.update_game(self.settings, process, memory);
-                }
-                TimerState::NotRunning | TimerState::Ended => {
-                    let not_running = self.timer.stop();
-                    if not_running.update_game(self.settings, process, memory) {
-                        _ = self.timer.get_or_start();
-                    }
-                }
-                otherwise => {
-                    log!("Unexpected timer state: {:?}", otherwise);
-                }
-            }
+            let action = self.tick(process, memory);
+            action.send();
             next_tick().await;
             self.settings.update();
+        }
+    }
+
+    fn tick(&mut self, process: &Process, memory: &Memory) -> Action {
+        let timer_state = timer::state();
+        match timer_state {
+            TimerState::Running | TimerState::Paused => {
+                let running = self.timer.get_or_start();
+                return running.update_game(self.settings, process, memory);
+            }
+            TimerState::NotRunning | TimerState::Ended => {
+                let not_running = self.timer.stop();
+                return not_running.update_game(self.settings, process, memory);
+            }
+            otherwise => {
+                log!("Unexpected timer state: {:?}", otherwise);
+                return Action::Nothing;
+            }
         }
     }
 }
 
 impl NotRunning {
-    fn update_game(&mut self, settings: &Settings, process: &Process, memory: &Memory) -> bool {
+    fn update_game(&mut self, settings: &Settings, process: &Process, memory: &Memory) -> Action {
         let mut read = Read::new(&mut self.watchers, process, memory);
 
         #[cfg(debugging)]
@@ -1004,6 +1063,9 @@ impl NotRunning {
             let _ = *read.input();
             let _ = *read.story_progression();
             let _ = *read.loading_slot();
+            let _ = *read.battle_state();
+            let _ = *read.map_id();
+            let _ = *read.formation_id();
             read.watchers.dump_all_vars();
         }
 
@@ -1014,8 +1076,7 @@ impl NotRunning {
             if settings.reset {
                 let select_screen = read.select_screen();
                 if select_screen.changed_to(&6) {
-                    log!("Timer Reset!");
-                    timer::reset();
+                    return Action::Reset;
                 }
             }
 
@@ -1026,27 +1087,28 @@ impl NotRunning {
                     if (cursor_position.current >> 16) & 0xFF == 0 {
                         let input = read.input();
                         if input.confirm_pressed() {
-                            log!("Timer Started!");
-                            timer::start();
-                            return true;
+                            return Action::Start;
                         }
                     }
                 }
             }
 
             #[cfg(testing)]
-            if settings.reset_on_load {
+            if settings.reset_on_load || settings.reset_on_autosave_load {
                 let loading = read.loading();
                 if loading.on_loading_screen() {
                     let input = read.input();
                     if input.changed() && input.confirm_pressed() {
                         let slot = read.loading_slot();
-                        if slot.current != 0 {
-                            log!("Save loaded, reset timer!");
-                            timer::reset();
-                        } else {
-                            log!("Loading Autosave, not resetting");
+                        let is_autosave = slot.current == 0;
+                        log!("{}ave loaded!", if is_autosave { "Autos" } else { "S" });
+                        if settings.reset_on_autosave_load && is_autosave {
+                            return Action::Reset;
                         }
+                        if settings.reset_on_load && is_autosave == false {
+                            return Action::Reset;
+                        }
+                        log!("Not resetting");
                     }
                 }
             }
@@ -1060,30 +1122,38 @@ impl NotRunning {
                 }
             }
         } else if self.loading_frame_buffer > 0 {
-            let loading = read.loading();
-            if loading.is_loading() {
-                log!("Save loaded, timer starting");
-                timer::start();
-                timer::pause_game_time();
-                return true;
+            if read.loading().is_loading() {
+                log!("Save loaded");
+                return Action::StartPaused;
             }
         } else {
             #[cfg(testing)]
-            if read.story_progression().changed_to(&Progress(2080)) {
-                log!("Bevelle Guards test");
-                timer::start();
-                return true;
+            if settings.start_on_battle || settings.start_on_guards {
+                let story = *read.story_progression();
+
+                if settings.start_on_battle && story.current.0 > 0 && read.map_id().changed() {
+                    log!("Battle Start!");
+                    return Action::Start;
+                }
+
+                if settings.start_on_guards && story.changed_to(&Progress(2080)) {
+                    log!("Bevelle Guards test");
+                    return Action::Start;
+                }
             }
         }
 
-        return false;
+        return Action::Nothing;
     }
 }
 
 impl Running {
-    fn update_game(&mut self, settings: &Settings, process: &Process, memory: &Memory) {
-        if let ControlFlow::Break(split) = self.find_split(settings, process, memory) {
-            self.try_split(settings, split);
+    fn update_game(&mut self, settings: &Settings, process: &Process, memory: &Memory) -> Action {
+        match self.find_split(settings, process, memory) {
+            ControlFlow::Break(split) => self
+                .try_split(settings, split)
+                .map_or(Action::Nothing, Action::Split),
+            ControlFlow::Continue(action) => action,
         }
     }
 
@@ -1153,8 +1223,7 @@ impl Running {
             if level.new_game() {
                 let select_screen = read.select_screen();
                 if select_screen.changed_to(&6) {
-                    log!("Timer Reset!");
-                    timer::reset();
+                    return RESET;
                 }
             }
         }
@@ -1165,20 +1234,23 @@ impl Running {
         story_progress.split_sahagins(battle_state, &mut read)?;
 
         #[cfg(testing)]
-        if settings.reset_on_load {
+        if settings.reset_on_load || settings.reset_on_autosave_load {
             let level = read.level();
             if level.new_game() {
                 let loading = read.loading();
                 if loading.on_loading_screen() {
                     let input = read.input();
-                    if input.confirm_pressed() {
+                    if input.changed() && input.confirm_pressed() {
                         let slot = read.loading_slot();
-                        if slot.current != 0 {
-                            log!("Save loaded, reset timer!");
-                            timer::reset();
-                        } else {
-                            log!("Loading Autosave, not resetting");
+                        let is_autosave = slot.current == 0;
+                        log!("{}ave loaded!", if is_autosave { "Autos" } else { "S" });
+                        if settings.reset_on_autosave_load && is_autosave {
+                            return RESET;
                         }
+                        if settings.reset_on_load && is_autosave == false {
+                            return RESET;
+                        }
+                        log!("Not resetting");
                     }
                 }
             }
@@ -1187,7 +1259,7 @@ impl Running {
         return NO_SPLIT;
     }
 
-    fn try_split(&mut self, settings: &Settings, split: Splits) {
+    fn try_split(&mut self, settings: &Settings, split: Splits) -> Option<Splits> {
         log!("Potential split: {:?}", split);
 
         #[cfg(testing)]
@@ -1197,21 +1269,20 @@ impl Running {
                 s
             }
             Err(UseSplit::Keep) => split,
-            Err(UseSplit::Ignore) => return,
+            Err(UseSplit::Ignore) => return None,
         };
 
         if settings.filter(split) == false {
             log!("Ignoring disabled split: {:?}", split);
-            return;
+            return None;
         }
 
         if self.splits.insert(&split) == false {
             log!("Ignoring duplicated split: {:?}", split);
-            return;
+            return None;
         }
 
-        log!("SPLIT! {:?}", split);
-        timer::split();
+        return Some(split);
     }
 
     #[cfg(testing)]
@@ -1328,8 +1399,9 @@ struct BaseAddress {
     start: Address,
 }
 
-type Splitter = ControlFlow<Splits>;
-const NO_SPLIT: Splitter = ControlFlow::Continue(());
+type Splitter = ControlFlow<Splits, Action>;
+const NO_SPLIT: Splitter = ControlFlow::Continue(Action::Nothing);
+const RESET: Splitter = ControlFlow::Continue(Action::Reset);
 
 #[derive(CheckedBitPattern, Copy, Clone, Debug, PartialEq, Eq, Default)]
 #[repr(transparent)]
