@@ -45,6 +45,7 @@ enum Splits {
     BesaidRoad,
     Echuilles,
     Geneaux,
+    Ifrit,
     Kilika,
     Oblitzerator,
     BeforeBlitzball,
@@ -57,6 +58,7 @@ enum Splits {
     Gui,
     MrrSkip,
     DjoseRoad,
+    Ixion,
     EnterMoonflow,
     MoonflowSouth,
     Extractor,
@@ -66,6 +68,7 @@ enum Splits {
     Spherimorph,
     Crawler,
     Seymour,
+    Shiva,
     Wendigo,
     Bikanel,
     Home,
@@ -81,6 +84,7 @@ enum Splits {
     SanctuaryKeeper,
     Zanarkand,
     Tetris,
+    SpectralKeeper,
     Yunalesca,
     Core,
     Overdrive,
@@ -90,8 +94,6 @@ enum Splits {
     YuYevon,
     #[cfg(testing)]
     SinFin,
-    #[cfg(testing)]
-    Ifrit,
     #[cfg(testing)]
     Luca,
     #[cfg(testing)]
@@ -111,8 +113,6 @@ enum Splits {
     #[cfg(testing)]
     Sahagins,
     #[cfg(testing)]
-    Ixion,
-    #[cfg(testing)]
     MoonflowNorth,
     #[cfg(testing)]
     OakaShop,
@@ -122,8 +122,6 @@ enum Splits {
     SeymourGrid,
     #[cfg(testing)]
     WendigoGrid,
-    #[cfg(testing)]
-    Shiva,
     #[cfg(testing)]
     Crevasse,
     #[cfg(testing)]
@@ -150,8 +148,6 @@ enum Splits {
     ViaUnderwater,
     #[cfg(testing)]
     Defender,
-    #[cfg(testing)]
-    SpectralKeeper,
 }
 
 #[derive(Gui)]
@@ -221,6 +217,10 @@ pub struct Settings {
     #[default = true]
     geneaux: bool,
 
+    /// Kilika Trials
+    #[default = false]
+    ifrit: bool,
+
     /// Kilika Woods
     #[default = true]
     kilika: bool,
@@ -269,6 +269,10 @@ pub struct Settings {
     #[default = true]
     djose_road: bool,
 
+    /// Djose Trials
+    #[default = false]
+    ixion: bool,
+
     /// Entering Moonflow
     #[default = false]
     enter_moonflow: bool,
@@ -304,6 +308,10 @@ pub struct Settings {
     /// Seymour
     #[default = true]
     seymour: bool,
+
+    /// Macalania Trials
+    #[default = false]
+    shiva: bool,
 
     /// Wendigo
     #[default = true]
@@ -364,6 +372,10 @@ pub struct Settings {
     /// Zanarkand Trials (Tetris)
     #[default = false]
     tetris: bool,
+
+    /// Spectral Keeper
+    #[default = false]
+    spectral_keeper: bool,
 
     /// Yunalesca
     #[default = true]
@@ -428,11 +440,6 @@ pub struct Settings {
     sinfin: bool,
 
     #[cfg(testing)]
-    /// Kilika Trials
-    #[default = false]
-    ifrit: bool,
-
-    #[cfg(testing)]
     /// Yuna gets kidnapped in Luca
     #[default = false]
     luca: bool,
@@ -478,11 +485,6 @@ pub struct Settings {
     sahagins: bool,
 
     #[cfg(testing)]
-    /// Djose Trials
-    #[default = false]
-    ixion: bool,
-
-    #[cfg(testing)]
     /// Moonflow North
     #[default = false]
     moonflow_north: bool,
@@ -506,11 +508,6 @@ pub struct Settings {
     /// Pre-Wendigo grid
     #[default = false]
     wendigo_grid: bool,
-
-    #[cfg(testing)]
-    /// Macalania Trials
-    #[default = false]
-    shiva: bool,
 
     #[cfg(testing)]
     /// Crevasse
@@ -576,11 +573,6 @@ pub struct Settings {
     /// Defender
     #[default = false]
     defender: bool,
-
-    #[cfg(testing)]
-    /// Spectral Keeper
-    #[default = false]
-    spectral_keeper: bool,
 }
 
 impl Settings {
@@ -603,6 +595,7 @@ impl Settings {
             besaid_road,
             echuilles,
             geneaux,
+            ifrit,
             kilika,
             oblitzerator,
             before_blitzball,
@@ -615,6 +608,7 @@ impl Settings {
             gui,
             mrr_skip,
             djose_road,
+            ixion,
             enter_moonflow,
             moonflow_south,
             extractor,
@@ -624,6 +618,7 @@ impl Settings {
             spherimorph,
             crawler,
             seymour,
+            shiva,
             wendigo,
             bikanel,
             home,
@@ -639,6 +634,7 @@ impl Settings {
             sanctuary_keeper,
             zanarkand,
             tetris,
+            spectral_keeper,
             yunalesca,
             core,
             overdrive,
@@ -661,8 +657,6 @@ impl Settings {
             #[cfg(testing)]
             sinfin,
             #[cfg(testing)]
-            ifrit,
-            #[cfg(testing)]
             luca,
             #[cfg(testing)]
             workers1,
@@ -681,8 +675,6 @@ impl Settings {
             #[cfg(testing)]
             sahagins,
             #[cfg(testing)]
-            ixion,
-            #[cfg(testing)]
             moonflow_north,
             #[cfg(testing)]
             oaka_shop,
@@ -692,8 +684,6 @@ impl Settings {
             seymour_grid,
             #[cfg(testing)]
             wendigo_grid,
-            #[cfg(testing)]
-            shiva,
             #[cfg(testing)]
             crevasse,
             #[cfg(testing)]
@@ -720,8 +710,6 @@ impl Settings {
             via_underwater,
             #[cfg(testing)]
             defender,
-            #[cfg(testing)]
-            spectral_keeper,
         } = self;
 
         return *match split_on {
@@ -734,6 +722,7 @@ impl Settings {
             Splits::BesaidRoad => besaid_road,
             Splits::Echuilles => echuilles,
             Splits::Geneaux => geneaux,
+            Splits::Ifrit => ifrit,
             Splits::Kilika => kilika,
             Splits::Oblitzerator => oblitzerator,
             Splits::BeforeBlitzball => before_blitzball,
@@ -746,6 +735,7 @@ impl Settings {
             Splits::Gui => gui,
             Splits::MrrSkip => mrr_skip,
             Splits::DjoseRoad => djose_road,
+            Splits::Ixion => ixion,
             Splits::EnterMoonflow => enter_moonflow,
             Splits::MoonflowSouth => moonflow_south,
             Splits::Extractor => extractor,
@@ -755,6 +745,7 @@ impl Settings {
             Splits::Spherimorph => spherimorph,
             Splits::Crawler => crawler,
             Splits::Seymour => seymour,
+            Splits::Shiva => shiva,
             Splits::Wendigo => wendigo,
             Splits::Bikanel => bikanel,
             Splits::Home => home,
@@ -770,6 +761,7 @@ impl Settings {
             Splits::SanctuaryKeeper => sanctuary_keeper,
             Splits::Zanarkand => zanarkand,
             Splits::Tetris => tetris,
+            Splits::SpectralKeeper => spectral_keeper,
             Splits::Yunalesca => yunalesca,
             Splits::Core => core,
             Splits::Overdrive => overdrive,
@@ -1450,7 +1442,6 @@ impl Level {
     const BESAID_END_ROAD: u32 = 22;
     const NEW_GAME: u32 = 23;
     const LAGOON: u32 = 41;
-    #[cfg(testing)]
     const KILIKA_FAYTH: u32 = 45;
     const KILIKA_RESIDENTIAL_AREA: u32 = 46;
     const HIGHROAD_AGENCY: u32 = 58;
@@ -1459,17 +1450,14 @@ impl Level {
     const BESAID_VILLAGE_ROAD: u32 = 69;
     const MOONFLOW_SOUTH_BANK_ROAD: u32 = 75;
     const DJOSE_PILGRIMAGE_ROAD: u32 = 76;
-    #[cfg(testing)]
     const KILIKA_TEMPLE: u32 = 78;
     const MUSHROOM_ROCK_ROAD: u32 = 79;
     #[cfg(testing)]
     const MACALNIA_ANTECHAMBER: u32 = 80;
-    #[cfg(testing)]
     const DJOSE_OUTSIDE: u32 = 82;
     #[cfg(testing)]
     const LUCA_DOCK_1: u32 = 85;
     const LUCA_DOCK_5: u32 = 89;
-    #[cfg(testing)]
     const DJOSE_FAYTH: u32 = 90;
     const DJOSE_HIGHROAD: u32 = 93;
     #[cfg(testing)]
@@ -1477,7 +1465,6 @@ impl Level {
     #[cfg(testing)]
     const MACALNIA_LAKE: u32 = 102;
     const MOONFLOW_SOUTH_BANK: u32 = 105;
-    #[cfg(testing)]
     const MACALANIA_TEMPLE: u32 = 106;
     const MACALANIA_WOODS_SOUTH: u32 = 110;
     const LUCA_MAIN: u32 = 123;
@@ -1487,7 +1474,6 @@ impl Level {
     const GUADOSALAM: u32 = 135;
     const BIKANEL_NORTH: u32 = 138;
     const THUNDERPLAINS_SOUTH: u32 = 140;
-    #[cfg(testing)]
     const MACALANIA_TEMPLE_ROAD: u32 = 153;
     const THUNDERPLAINS_NORTH: u32 = 162;
     #[cfg(testing)]
@@ -1529,8 +1515,7 @@ impl Level {
             (Self::LAGOON, Self::BESAID_PROMONTORY | Self::BESAID_VILLAGE_ROAD) => Splits::Lagoon, // story 119->124
             (Self::BESAID_VILLAGE, Self::BESAID_VILLAGE_ROAD) => Splits::BesaidVillage, // story == 200
             (Self::BESAID_END_ROAD, Self::BESAID_BEACH) => Splits::BesaidRoad, // story == 217
-            #[cfg(testing)]
-            (Self::KILIKA_FAYTH, Self::KILIKA_TEMPLE) => Splits::Ifrit, // story 346 -> 348
+            (Self::KILIKA_FAYTH, Self::KILIKA_TEMPLE) => Splits::Ifrit,        // story 346 -> 348
             (Self::KILIKA_WOODS, Self::KILIKA_RESIDENTIAL_AREA) => Splits::Kilika,
             #[cfg(testing)]
             (Self::LUCA_MAIN, Self::LUCA_DOCK_1) if read.is_at(Progress::WORKERS) => Splits::Luca,
@@ -1542,7 +1527,6 @@ impl Level {
             (Self::HIGHROAD_NORTH_END, Self::MUSHROOM_ROCK_ROAD) => Splits::OldRoad,
             (Self::MUSHROOM_ROCK_ROAD, Self::MUSHROOM_ROCK_AFTERMATH) => Splits::MrrSkip,
             (Self::DJOSE_HIGHROAD, Self::DJOSE_PILGRIMAGE_ROAD) => Splits::DjoseRoad,
-            #[cfg(testing)]
             (Self::DJOSE_FAYTH, Self::DJOSE_OUTSIDE) => Splits::Ixion, // story == 998
             (Self::DJOSE_HIGHROAD, Self::MOONFLOW_SOUTH_BANK_ROAD) => Splits::EnterMoonflow, // story == 1030
             (Self::MOONFLOW_SOUTH_BANK_ROAD, Self::MOONFLOW_SOUTH_BANK) => Splits::MoonflowSouth,
@@ -1559,7 +1543,6 @@ impl Level {
             (Self::MACALANIA_TEMPLE_ROAD, Self::MACALANIA_TEMPLE) => Splits::SeymourGrid, // story == 1504
             #[cfg(testing)]
             (Self::MACALNIA_ANTECHAMBER, Self::MACALNIA_HALLWAY) => Splits::WendigoGrid,
-            #[cfg(testing)]
             (Self::MACALANIA_TEMPLE, Self::MACALANIA_TEMPLE_ROAD) => Splits::Shiva, // story == 1557
             #[cfg(testing)]
             (Self::CREVASSE, Self::MACALNIA_LAKE) => Splits::Crevasse,
@@ -1726,7 +1709,6 @@ impl Progress {
             Self::BIRAN_YENKE if battle_state.fanfare() => Splits::BiranYenke,
             Self::FLUX if is_encounter(65, 0, 0) => Splits::Flux,
             Self::SANCTUARY_KEEPER if is_encounter(68, 0, 0) => Splits::SanctuaryKeeper,
-            #[cfg(testing)]
             Self::SPECTRAL_KEEPER => Splits::SpectralKeeper,
             Self::YUNALESCA => Splits::Yunalesca,
             Self::SIN_CORE => Splits::Core,

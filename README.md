@@ -10,19 +10,23 @@ An alternative to the [official autosplitter](https://www.speedrun.com/ffx/guide
 - Includes more split options (all disabled by default)
   - Left Besaid Village
   - Traveled Besaid Road
+  - Ifrit obtained
   - Completed Chocobo Eater
-  - Executed MRR Skip (when moving to the next zone)
+  - ~~Executed MRR Skip (when moving to the next zone)~~ contributed that one to the official autosplitter
+  - Ixion obtained
   - Entering Moonflow (Point of no return for Stone Breath)
   - Traveled Macalania Woods
+  - Shiva obtained
   - Arrived at Home
   - After Via Purifico Grid
   - Traveled through Calm Lands
   - Reached Zanarkand Temple
   - Done with Tetris
+  - Beat Spectral Keeper
   - Finished Eggs/Crystals/The Nucleus
 - (Hopefully) fixed a few bugs:
   - Lagoon/Piranhas sometimes not splitting
-  - Some fights not splitting when the fight was reset (e.g. Wendigo)
+  - ~~Some fights not splitting when the fight was reset (e.g. Wendigo)~~ contributed that one to the official autosplitter
 
 ## Features
 
