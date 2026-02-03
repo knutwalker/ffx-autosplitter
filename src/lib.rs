@@ -772,8 +772,6 @@ impl Settings {
             #[cfg(testing)]
             Splits::SinFin => sinfin,
             #[cfg(testing)]
-            Splits::Ifrit => ifrit,
-            #[cfg(testing)]
             Splits::Luca => luca,
             #[cfg(testing)]
             Splits::Workers1 => workers1,
@@ -792,8 +790,6 @@ impl Settings {
             #[cfg(testing)]
             Splits::Sahagins => sahagins,
             #[cfg(testing)]
-            Splits::Ixion => ixion,
-            #[cfg(testing)]
             Splits::MoonflowNorth => moonflow_north,
             #[cfg(testing)]
             Splits::OakaShop => oaka_shop,
@@ -803,8 +799,6 @@ impl Settings {
             Splits::SeymourGrid => seymour_grid,
             #[cfg(testing)]
             Splits::WendigoGrid => wendigo_grid,
-            #[cfg(testing)]
-            Splits::Shiva => shiva,
             #[cfg(testing)]
             Splits::Crevasse => crevasse,
             #[cfg(testing)]
@@ -831,8 +825,6 @@ impl Settings {
             Splits::ViaUnderwater => via_underwater,
             #[cfg(testing)]
             Splits::Defender => defender,
-            #[cfg(testing)]
-            Splits::SpectralKeeper => spectral_keeper,
         };
     }
 }
