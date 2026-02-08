@@ -10,7 +10,7 @@ use asr::{
     watcher::{Pair, Watcher},
 };
 use bytemuck::CheckedBitPattern;
-#[cfg(any(testing, debugging))]
+#[cfg(testing)]
 use bytemuck::checked;
 use core::{fmt, iter, ops::ControlFlow};
 use num_enum::IntoPrimitive;
@@ -1038,21 +1038,6 @@ impl NotRunning {
     fn update_game(&mut self, settings: &Settings, process: &Process, memory: &Memory) -> Action {
         let mut read = Read::new(&mut self.watchers, process, memory);
 
-        #[cfg(debugging)]
-        {
-            let _ = *read.loading();
-            let _ = *read.level();
-            let _ = *read.select_screen();
-            let _ = *read.cursor_position();
-            let _ = *read.input();
-            let _ = *read.story_progression();
-            let _ = *read.loading_slot();
-            let _ = *read.battle_state();
-            let _ = *read.map_id();
-            let _ = *read.formation_id();
-            read.watchers.dump_all_vars();
-        }
-
         let level = read.level();
         if level.new_game() {
             self.loading_frame_buffer = self.loading_frame_buffer.saturating_sub(1);
@@ -1143,25 +1128,6 @@ impl Running {
 
     fn find_split(&mut self, settings: &Settings, process: &Process, memory: &Memory) -> Splitter {
         let mut read = Read::new(&mut self.watchers, process, memory);
-
-        #[cfg(debugging)]
-        {
-            let _ = *read.loading();
-            let _ = *read.encounter_count();
-            let _ = *read.level();
-            let _ = *read.story_progression();
-            let _ = *read.battle_state();
-            let _ = *read.cutscene_type();
-            let _ = *read.map_id();
-            let _ = *read.formation_id();
-            let _ = *read.yu_yevon();
-            let _ = *read.hp_enemy_a();
-            let _ = *read.loading_slot();
-            read.watchers.dump_all_vars();
-            timer::set_variable_int("workers3", self.workers3);
-            timer::set_variable_int("sahagins", self.sahagins);
-            timer::set_variable_int("guards", self.guards);
-        }
 
         if settings.remove_loads {
             let loading = read.loading();
@@ -1821,13 +1787,13 @@ struct Memory {
     cursor_position: DeepPointer<1>,
     input: DeepPointer<1>,
     select_screen: DeepPointer<1>,
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     loading_slot: DeepPointer<1>,
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     hp_enemy_b: DeepPointer<2>,
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     hp_enemy_c: DeepPointer<2>,
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     hp_enemy_d: DeepPointer<2>,
 }
 
@@ -1847,13 +1813,13 @@ impl Memory {
             cursor_position: DeepPointer::new_32bit(base.start, &[0x1467808]),
             input: DeepPointer::new_32bit(base.start, &[0x8CB170]),
             select_screen: DeepPointer::new_32bit(base.start, &[0xF25B30]),
-            #[cfg(any(testing, debugging))]
+            #[cfg(testing)]
             loading_slot: DeepPointer::new_32bit(base.start, &[0x8E72DC]),
-            #[cfg(any(testing, debugging))]
+            #[cfg(testing)]
             hp_enemy_b: DeepPointer::new_32bit(base.start, &[0xD34460, 0x1560]),
-            #[cfg(any(testing, debugging))]
+            #[cfg(testing)]
             hp_enemy_c: DeepPointer::new_32bit(base.start, &[0xD34460, 0x24F0]),
-            #[cfg(any(testing, debugging))]
+            #[cfg(testing)]
             hp_enemy_d: DeepPointer::new_32bit(base.start, &[0xD34460, 0x3480]),
         };
     }
@@ -1884,14 +1850,6 @@ impl<T> Watch<T> {
             return self.0.pair.as_ref().unwrap();
         }
     }
-
-    #[cfg(debugging)]
-    fn current(&self) -> T
-    where
-        T: Clone,
-    {
-        return self.0.pair.as_ref().unwrap().current.clone();
-    }
 }
 
 struct Watchers {
@@ -1908,13 +1866,13 @@ struct Watchers {
     select_screen: Watch<u32>,
     cursor_position: Watch<u32>,
     input: Watch<Input>,
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     loading_slot: Watch<u64>,
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     hp_enemy_b: Watch<u32>,
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     hp_enemy_c: Watch<u32>,
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     hp_enemy_d: Watch<u32>,
 }
 
@@ -1934,13 +1892,13 @@ impl Watchers {
             select_screen: Watch::new(),
             cursor_position: Watch::new(),
             input: Watch::new(),
-            #[cfg(any(testing, debugging))]
+            #[cfg(testing)]
             loading_slot: Watch::new(),
-            #[cfg(any(testing, debugging))]
+            #[cfg(testing)]
             hp_enemy_b: Watch::new(),
-            #[cfg(any(testing, debugging))]
+            #[cfg(testing)]
             hp_enemy_c: Watch::new(),
-            #[cfg(any(testing, debugging))]
+            #[cfg(testing)]
             hp_enemy_d: Watch::new(),
         };
     }
@@ -2004,7 +1962,7 @@ impl Watchers {
         return self.input.update(process, &memory.input);
     }
 
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     fn loading_slot(&mut self, process: &Process, memory: &Memory) -> Pair<u32> {
         return self
             .loading_slot
@@ -2015,42 +1973,22 @@ impl Watchers {
             });
     }
 
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     fn hp_enemy_b(&mut self, process: &Process, memory: &Memory) -> &Pair<u32> {
         let value = memory.hp_enemy_b.deref(process).map_or(Hp::default(), Hp);
         return self.hp_enemy_b.0.update_infallible(value.0);
     }
 
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     fn hp_enemy_c(&mut self, process: &Process, memory: &Memory) -> &Pair<u32> {
         let value = memory.hp_enemy_c.deref(process).map_or(Hp::default(), Hp);
         return self.hp_enemy_c.0.update_infallible(value.0);
     }
 
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     fn hp_enemy_d(&mut self, process: &Process, memory: &Memory) -> &Pair<u32> {
         let value = memory.hp_enemy_d.deref(process).map_or(Hp::default(), Hp);
         return self.hp_enemy_d.0.update_infallible(value.0);
-    }
-
-    #[cfg(debugging)]
-    fn dump_all_vars(&self) {
-        timer::set_variable_int("is_loading", self.is_loading.current().0);
-        timer::set_variable_int("current_level", self.current_level.current().0);
-        timer::set_variable_int("story_progression", self.story_progression.current().0);
-        timer::set_variable_int("battle_state", self.battle_state.current().0);
-        timer::set_variable_int("cutscene_type", self.cutscene_type.current());
-        timer::set_variable_int("map_id", self.map_id.current());
-        timer::set_variable_int("formation_id", self.formation_id.current().0);
-        timer::set_variable_int("yu_yevon", self.yu_yevon.current());
-        timer::set_variable_int("hp_enemy_a", self.hp_enemy_a.current());
-        timer::set_variable_int("hp_enemy_b", self.hp_enemy_b.current());
-        timer::set_variable_int("hp_enemy_c", self.hp_enemy_c.current());
-        timer::set_variable_int("hp_enemy_d", self.hp_enemy_d.current());
-        timer::set_variable_int("select_screen", self.select_screen.current());
-        timer::set_variable_int("cursor_position", self.cursor_position.current());
-        timer::set_variable_int("input", self.input.current().0);
-        timer::set_variable_int("loading_slot", self.loading_slot.current());
     }
 }
 
@@ -2071,13 +2009,13 @@ struct Read<'a> {
     select_screen: Option<Pair<u32>>,
     cursor_position: Option<Pair<u32>>,
     input: Option<Pair<Input>>,
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     loading_slot: Option<Pair<u32>>,
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     hp_enemy_b: Option<Pair<u32>>,
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     hp_enemy_c: Option<Pair<u32>>,
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     hp_enemy_d: Option<Pair<u32>>,
 }
 
@@ -2100,13 +2038,13 @@ impl<'a> Read<'a> {
             select_screen: None,
             cursor_position: None,
             input: None,
-            #[cfg(any(testing, debugging))]
+            #[cfg(testing)]
             loading_slot: None,
-            #[cfg(any(testing, debugging))]
+            #[cfg(testing)]
             hp_enemy_b: None,
-            #[cfg(any(testing, debugging))]
+            #[cfg(testing)]
             hp_enemy_c: None,
-            #[cfg(any(testing, debugging))]
+            #[cfg(testing)]
             hp_enemy_d: None,
         }
     }
@@ -2180,25 +2118,25 @@ impl<'a> Read<'a> {
         return self.story_progression().is(story);
     }
 
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     fn loading_slot(&mut self) -> &Pair<u32> {
         self.loading_slot
             .get_or_insert_with(|| self.watchers.loading_slot(self.process, self.memory))
     }
 
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     fn hp_enemy_b(&mut self) -> &Pair<u32> {
         self.hp_enemy_b
             .get_or_insert_with(|| *self.watchers.hp_enemy_b(self.process, self.memory))
     }
 
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     fn hp_enemy_c(&mut self) -> &Pair<u32> {
         self.hp_enemy_c
             .get_or_insert_with(|| *self.watchers.hp_enemy_c(self.process, self.memory))
     }
 
-    #[cfg(any(testing, debugging))]
+    #[cfg(testing)]
     fn hp_enemy_d(&mut self) -> &Pair<u32> {
         self.hp_enemy_d
             .get_or_insert_with(|| *self.watchers.hp_enemy_d(self.process, self.memory))
