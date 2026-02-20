@@ -33,6 +33,9 @@ macro_rules! log {
     }};
 }
 
+#[cfg(testing)]
+const SPLIT_COOLDOWN_SECS: i32 = 5;
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, IntoPrimitive, EnumIter)]
 #[repr(u8)]
 enum Splits {
@@ -148,6 +151,8 @@ enum Splits {
     ViaUnderwater,
     #[cfg(testing)]
     Defender,
+    #[cfg(testing)]
+    LevelSplit,
 }
 
 #[derive(Gui)]
@@ -435,6 +440,11 @@ pub struct Settings {
     reset_on_autosave_load: bool,
 
     #[cfg(testing)]
+    /// SPLIT: split everytime the level changes
+    #[default = false]
+    split_on_level: bool,
+
+    #[cfg(testing)]
     /// Sin's Fin
     #[default = false]
     sinfin: bool,
@@ -655,6 +665,8 @@ impl Settings {
             #[cfg(testing)]
                 reset_on_autosave_load: _,
             #[cfg(testing)]
+            split_on_level,
+            #[cfg(testing)]
             sinfin,
             #[cfg(testing)]
             luca,
@@ -825,6 +837,8 @@ impl Settings {
             Splits::ViaUnderwater => via_underwater,
             #[cfg(testing)]
             Splits::Defender => defender,
+            #[cfg(testing)]
+            Splits::LevelSplit => split_on_level,
         };
     }
 }
@@ -838,11 +852,15 @@ struct Running {
     sahagins: u32,
     #[cfg(testing)]
     guards: u32,
+    #[cfg(testing)]
+    last_level_split: u32,
 }
 
 struct NotRunning {
     watchers: Watchers,
     loading_frame_buffer: u32,
+    #[cfg(testing)]
+    start_igt: u32,
 }
 
 impl NotRunning {
@@ -850,6 +868,8 @@ impl NotRunning {
         Self {
             watchers: Watchers::new(),
             loading_frame_buffer: 0,
+            #[cfg(testing)]
+            start_igt: 0,
         }
     }
 }
@@ -867,7 +887,7 @@ impl Timer {
     fn get_or_start(&mut self) -> &mut Running {
         match self {
             Self::Running(running) => running,
-            Self::NotRunning(_) => {
+            Self::NotRunning(_nr) => {
                 let running = Running {
                     splits: SeenSplits::empty(),
                     watchers: Watchers::new(),
@@ -877,6 +897,8 @@ impl Timer {
                     sahagins: 0,
                     #[cfg(testing)]
                     guards: 1,
+                    #[cfg(testing)]
+                    last_level_split: _nr.start_igt,
                 };
                 *self = Self::Running(running);
                 let Self::Running(running) = self else {
@@ -1037,10 +1059,23 @@ impl State<'_> {
 impl NotRunning {
     fn update_game(&mut self, settings: &Settings, process: &Process, memory: &Memory) -> Action {
         let mut read = Read::new(&mut self.watchers, process, memory);
+        let splitter = Self::try_update_game(settings, &mut read, &mut self.loading_frame_buffer);
+        #[cfg(testing)]
+        if matches!(&splitter, Action::Start) {
+            self.start_igt = read.igt().current;
+        }
 
+        return splitter;
+    }
+
+    fn try_update_game(
+        settings: &Settings,
+        read: &mut Read,
+        loading_frame_buffer: &mut u32,
+    ) -> Action {
         let level = read.level();
         if level.new_game() {
-            self.loading_frame_buffer = self.loading_frame_buffer.saturating_sub(1);
+            *loading_frame_buffer = loading_frame_buffer.saturating_sub(1);
 
             if settings.reset {
                 let select_screen = read.select_screen();
@@ -1087,10 +1122,10 @@ impl NotRunning {
                 let loading = read.loading();
                 if loading.old.on_loading_screen() && loading.current.not_loading() {
                     // 10 frames to allow for loading to start
-                    self.loading_frame_buffer = 10;
+                    *loading_frame_buffer = 10;
                 }
             }
-        } else if self.loading_frame_buffer > 0 {
+        } else if *loading_frame_buffer > 0 {
             if read.loading().is_loading() {
                 log!("Save loaded");
                 return Action::StartPaused;
@@ -1128,7 +1163,29 @@ impl Running {
 
     fn find_split(&mut self, settings: &Settings, process: &Process, memory: &Memory) -> Splitter {
         let mut read = Read::new(&mut self.watchers, process, memory);
+        let splitter = Self::try_find_split(settings, &mut read);
 
+        match &splitter {
+            #[cfg(testing)]
+            ControlFlow::Break(Splits::LevelSplit) => {
+                let igt = read.igt().current;
+                if igt
+                    .checked_signed_diff(self.last_level_split)
+                    .is_some_and(|o| o >= SPLIT_COOLDOWN_SECS)
+                {
+                    self.last_level_split = igt;
+                    return ControlFlow::Break(Splits::LevelSplit);
+                }
+
+                return NO_SPLIT;
+            }
+            _ => {}
+        };
+
+        return splitter;
+    }
+
+    fn try_find_split(settings: &Settings, read: &mut Read) -> Splitter {
         if settings.remove_loads {
             let loading = read.loading();
             if loading.changed() {
@@ -1152,21 +1209,20 @@ impl Running {
         }
 
         let level = *read.level();
-        level.split(level.old, &mut read)?;
+        level.split(level.old, read)?;
 
         let battle_state = *read.battle_state();
 
         if battle_state.changed() {
-            read.story_progression()
-                .split_battle(battle_state, &mut read)?;
+            read.story_progression().split_battle(battle_state, read)?;
         }
 
         let story_progress = *read.story_progression();
-        story_progress.split_advance(story_progress.old, &mut read)?;
+        story_progress.split_advance(story_progress.old, read)?;
 
         let yu_yevon = read.yu_yevon();
         if yu_yevon.changed_to(&1) {
-            story_progress.split_yu_yevon(&mut read)?;
+            story_progress.split_yu_yevon(read)?;
         }
 
         if settings.reset {
@@ -1179,9 +1235,9 @@ impl Running {
         }
 
         #[cfg(testing)]
-        story_progress.split_workers(battle_state, &mut read)?;
+        story_progress.split_workers(battle_state, read)?;
         #[cfg(testing)]
-        story_progress.split_sahagins(battle_state, &mut read)?;
+        story_progress.split_sahagins(battle_state, read)?;
 
         #[cfg(testing)]
         if settings.reset_on_load || settings.reset_on_autosave_load {
@@ -1225,6 +1281,13 @@ impl Running {
         if settings.filter(split) == false {
             log!("Ignoring disabled split: {:?}", split);
             return None;
+        }
+
+        #[cfg(testing)]
+        {
+            if matches!(&split, Splits::LevelSplit) {
+                return Some(split);
+            }
         }
 
         if self.splits.insert(&split) == false {
@@ -1512,8 +1575,17 @@ impl Level {
             (Self::CALM_LANDS, Self::CALM_LANDS_BRIDGE) => Splits::CalmLands, // story = 2400
             (Self::ZANARKAND_ROAD, Self::ZANARKAND_DOME) => Splits::Zanarkand, // stgory = 2767
             (Self::NUCLEUS, Self::DREAMS_END) => Splits::Eggs,                // story == 3260
+            #[cfg(testing)]
+            (from, to) if from != to && Self::in_game(from) && Self::in_game(to) => {
+                Splits::LevelSplit
+            }
             _ => return NO_SPLIT,
         })
+    }
+
+    #[cfg(testing)]
+    fn in_game(level: u32) -> bool {
+        return level > 0 && level != Level::NEW_GAME;
     }
 }
 
@@ -1795,6 +1867,8 @@ struct Memory {
     hp_enemy_c: DeepPointer<2>,
     #[cfg(testing)]
     hp_enemy_d: DeepPointer<2>,
+    #[cfg(testing)]
+    igt: DeepPointer<1>,
 }
 
 impl Memory {
@@ -1821,6 +1895,8 @@ impl Memory {
             hp_enemy_c: DeepPointer::new_32bit(base.start, &[0xD34460, 0x24F0]),
             #[cfg(testing)]
             hp_enemy_d: DeepPointer::new_32bit(base.start, &[0xD34460, 0x3480]),
+            #[cfg(testing)]
+            igt: DeepPointer::new_32bit(base.start, &[0xD2CB4C]),
         };
     }
 }
@@ -1874,6 +1950,8 @@ struct Watchers {
     hp_enemy_c: Watch<u32>,
     #[cfg(testing)]
     hp_enemy_d: Watch<u32>,
+    #[cfg(testing)]
+    igt: Watch<u32>,
 }
 
 impl Watchers {
@@ -1900,6 +1978,8 @@ impl Watchers {
             hp_enemy_c: Watch::new(),
             #[cfg(testing)]
             hp_enemy_d: Watch::new(),
+            #[cfg(testing)]
+            igt: Watch::new(),
         };
     }
 
@@ -1990,6 +2070,12 @@ impl Watchers {
         let value = memory.hp_enemy_d.deref(process).map_or(Hp::default(), Hp);
         return self.hp_enemy_d.0.update_infallible(value.0);
     }
+
+    #[cfg(testing)]
+    fn igt(&mut self, process: &Process, memory: &Memory) -> &Pair<u32> {
+        let value = memory.igt.deref(process).unwrap_or_default();
+        return self.igt.0.update_infallible(value);
+    }
 }
 
 struct Read<'a> {
@@ -2017,6 +2103,8 @@ struct Read<'a> {
     hp_enemy_c: Option<Pair<u32>>,
     #[cfg(testing)]
     hp_enemy_d: Option<Pair<u32>>,
+    #[cfg(testing)]
+    igt: Option<Pair<u32>>,
 }
 
 impl<'a> Read<'a> {
@@ -2046,6 +2134,8 @@ impl<'a> Read<'a> {
             hp_enemy_c: None,
             #[cfg(testing)]
             hp_enemy_d: None,
+            #[cfg(testing)]
+            igt: None,
         }
     }
 
@@ -2140,6 +2230,12 @@ impl<'a> Read<'a> {
     fn hp_enemy_d(&mut self) -> &Pair<u32> {
         self.hp_enemy_d
             .get_or_insert_with(|| *self.watchers.hp_enemy_d(self.process, self.memory))
+    }
+
+    #[cfg(testing)]
+    fn igt(&mut self) -> &Pair<u32> {
+        self.igt
+            .get_or_insert_with(|| *self.watchers.igt(self.process, self.memory))
     }
 }
 
