@@ -1147,9 +1147,20 @@ impl NotRunning {
             if settings.start_on_battle || settings.start_on_guards {
                 let story = *read.story_progression();
 
-                if settings.start_on_battle && story.current.0 > 0 && read.map_id().changed() {
-                    log!("Battle Start!");
-                    return Action::Start;
+                if settings.start_on_battle && story.current.0 > 0 {
+                    let battle_state = read.battle_state();
+                    if battle_state.changed() {
+                        if battle_state.in_battle() && !battle_state.is_over() {
+                            log!("Battle Start!");
+                            return Action::Start;
+                        }
+                    } else if battle_state.current.0 == 0 {
+                        let map_id = read.map_id();
+                        if map_id.changed() {
+                            log!("Battle Start After Load!");
+                            return Action::Start;
+                        }
+                    }
                 }
 
                 if settings.start_on_guards && story.changed_to(&Progress(2080)) {
