@@ -879,6 +879,11 @@ enum Timer {
     NotRunning(NotRunning),
 }
 
+enum Stopped<'g> {
+    AlreadyStopped(&'g mut NotRunning),
+    JustStopped(&'g mut NotRunning),
+}
+
 impl Timer {
     fn new() -> Self {
         return Self::NotRunning(NotRunning::new());
@@ -909,7 +914,7 @@ impl Timer {
         }
     }
 
-    fn stop(&mut self) -> &mut NotRunning {
+    fn stop(&mut self) -> Stopped<'_> {
         match self {
             Self::Running(_) => {
                 let not_running = NotRunning::new();
@@ -917,9 +922,9 @@ impl Timer {
                 let Self::NotRunning(not_running) = self else {
                     unreachable!();
                 };
-                not_running
+                Stopped::JustStopped(not_running)
             }
-            Self::NotRunning(not_running) => not_running,
+            Self::NotRunning(not_running) => Stopped::AlreadyStopped(not_running),
         }
     }
 }
@@ -1046,6 +1051,13 @@ impl State<'_> {
             }
             TimerState::NotRunning | TimerState::Ended => {
                 let not_running = self.timer.stop();
+                let not_running = match not_running {
+                    Stopped::AlreadyStopped(nr) => nr,
+                    Stopped::JustStopped(nr) => {
+                        _ = nr.update_game(self.settings, process, memory);
+                        nr
+                    }
+                };
                 return not_running.update_game(self.settings, process, memory);
             }
             otherwise => {
