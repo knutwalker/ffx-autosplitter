@@ -1091,7 +1091,7 @@ impl NotRunning {
 
             if settings.reset {
                 let select_screen = read.select_screen();
-                if select_screen.changed_to(&6) {
+                if select_screen.changed_from_to(&3, &6) {
                     return Action::Reset;
                 }
             }
@@ -1240,7 +1240,7 @@ impl Running {
         if settings.reset {
             if level.new_game() {
                 let select_screen = read.select_screen();
-                if select_screen.changed_to(&6) {
+                if select_screen.changed_from_to(&3, &6) {
                     return RESET;
                 }
             }
