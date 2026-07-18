@@ -74,6 +74,7 @@ enum Splits {
     Seymour,
     Shiva,
     Wendigo,
+    SandragoraReached,
     Bikanel,
     Home,
     Evrae,
@@ -329,6 +330,10 @@ pub struct Settings {
     /// Wendigo
     #[default = true]
     wendigo: bool,
+
+    /// Sandragora Farm started (NSG)
+    #[default = false]
+    sandragora_farm: bool,
 
     /// Bikanel (after Sandragora skip)
     #[default = false]
@@ -651,6 +656,7 @@ impl Settings {
             seymour,
             shiva,
             wendigo,
+            sandragora_farm,
             bikanel,
             home,
             evrae,
@@ -784,6 +790,7 @@ impl Settings {
             Splits::Seymour => seymour,
             Splits::Shiva => shiva,
             Splits::Wendigo => wendigo,
+            Splits::SandragoraReached => sandragora_farm,
             Splits::Bikanel => bikanel,
             Splits::Home => home,
             Splits::Evrae => evrae,
@@ -1708,7 +1715,6 @@ impl Progress {
     const WENDIGO: u32 = 1570;
     #[cfg(testing)]
     const BIKANEL_KIMAHRI: u32 = 1718;
-    #[cfg(testing)]
     const BIKANEL_RIKKU: u32 = 1720;
     #[cfg(testing)]
     const HOME: u32 = 1820;
@@ -1749,8 +1755,14 @@ impl Progress {
             return NO_SPLIT;
         }
 
-        if battle_state.escaped() && self.0 != Self::CHOCOBO_EATER {
-            return NO_SPLIT;
+        if battle_state.escaped() {
+            if battle_state.in_battle() && self.0 == Self::BIKANEL_RIKKU && is_encounter(48, 2, 0) {
+                return ControlFlow::Break(Splits::SandragoraReached);
+            };
+
+            if self.0 != Self::CHOCOBO_EATER {
+                return NO_SPLIT;
+            }
         }
 
         ControlFlow::Break(match self.0 {
