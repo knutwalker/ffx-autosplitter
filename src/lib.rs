@@ -1814,7 +1814,7 @@ impl Progress {
 
     fn split_advance(self, old: Self, read: &mut Read<'_>) -> Splitter {
         if self.0 == Self::ISAARU {
-            if read.cutscene_type().changed_from_to(&18, &257) {
+            if read.cutscene_type().changed_to(&257) {
                 if Self::is_encounter(read, 54, 1, 0) {
                     return ControlFlow::Break(Splits::ViaPurifico);
                 }
