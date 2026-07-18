@@ -1531,6 +1531,7 @@ impl Level {
     const LUCA_DOCK_1: u32 = 85;
     const LUCA_DOCK_5: u32 = 89;
     const DJOSE_FAYTH: u32 = 90;
+    const DJOSE_FAYTH_CUTSCENE: u32 = 91;
     const DJOSE_HIGHROAD: u32 = 93;
     #[cfg(testing)]
     const MOONFLOW_NORTH: u32 = 97;
@@ -1601,6 +1602,7 @@ impl Level {
             (Self::MUSHROOM_ROCK_ROAD, Self::MUSHROOM_ROCK_AFTERMATH) => Splits::MrrSkip,
             (Self::DJOSE_HIGHROAD, Self::DJOSE_PILGRIMAGE_ROAD) => Splits::DjoseRoad,
             (Self::DJOSE_FAYTH, Self::DJOSE_OUTSIDE) => Splits::Ixion, // story == 998
+            (Self::DJOSE_FAYTH_CUTSCENE, Self::DJOSE_OUTSIDE) => Splits::Ixion, // story == 1003
             (Self::DJOSE_HIGHROAD, Self::MOONFLOW_SOUTH_BANK_ROAD) => Splits::EnterMoonflow, // story == 1030
             (Self::MOONFLOW_SOUTH_BANK_ROAD, Self::MOONFLOW_SOUTH_BANK) => Splits::MoonflowSouth,
             #[cfg(testing)]
