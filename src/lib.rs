@@ -66,6 +66,7 @@ enum Splits {
     MoonflowSouth,
     Extractor,
     Guadosalam,
+    CsrBreak,
     ThunderPlains,
     MacalaniaWoods,
     Spherimorph,
@@ -293,6 +294,10 @@ pub struct Settings {
     /// Guadosalam
     #[default = true]
     guadosalam: bool,
+
+    /// CSR Break done
+    #[default = false]
+    csr_break: bool,
 
     /// Thunder Plains
     #[default = true]
@@ -623,6 +628,7 @@ impl Settings {
             moonflow_south,
             extractor,
             guadosalam,
+            csr_break,
             thunder_plains,
             macalania_woods,
             spherimorph,
@@ -752,6 +758,7 @@ impl Settings {
             Splits::MoonflowSouth => moonflow_south,
             Splits::Extractor => extractor,
             Splits::Guadosalam => guadosalam,
+            Splits::CsrBreak => csr_break,
             Splits::ThunderPlains => thunder_plains,
             Splits::MacalaniaWoods => macalania_woods,
             Splits::Spherimorph => spherimorph,
@@ -1519,6 +1526,7 @@ impl Level {
     const BIKANEL_NORTH: u32 = 138;
     const THUNDERPLAINS_SOUTH: u32 = 140;
     const MACALANIA_TEMPLE_ROAD: u32 = 153;
+    const POST_BREAK: u32 = 158;
     const THUNDERPLAINS_NORTH: u32 = 162;
     #[cfg(testing)]
     const MACALNIA_LAKE_SHOP: u32 = 164;
@@ -1577,6 +1585,7 @@ impl Level {
             #[cfg(testing)]
             (Self::MOONFLOW_NORTH, Self::GUADOSALAM) => Splits::MoonflowNorth,
             (Self::GUADOSALAM, Self::THUNDERPLAINS_SOUTH) => Splits::Guadosalam,
+            (Self::POST_BREAK, Self::THUNDERPLAINS_SOUTH) => Splits::CsrBreak,
             (Self::THUNDERPLAINS_NORTH, Self::MACALANIA_WOODS_SOUTH) => Splits::ThunderPlains,
             (Self::MACALANIA_WOODS_NORTH, Self::MACALANIA_SPRING) => Splits::MacalaniaWoods, // story == 1413
             #[cfg(testing)]
