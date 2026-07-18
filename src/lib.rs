@@ -206,7 +206,7 @@ pub struct Settings {
     #[default = true]
     lagoon: bool,
 
-    /// Besaid Village
+    /// Left Besaid Village
     #[default = false]
     besaid_village: bool,
 
@@ -226,7 +226,7 @@ pub struct Settings {
     #[default = true]
     geneaux: bool,
 
-    /// Kilika Trials
+    /// Kilika Trials finished
     #[default = false]
     ifrit: bool,
 
@@ -238,7 +238,7 @@ pub struct Settings {
     #[default = true]
     oblitzerator: bool,
 
-    /// Before Blitzball
+    /// Luca Main Gate before Blitzball
     #[default = false]
     before_blitzball: bool,
 
@@ -330,7 +330,7 @@ pub struct Settings {
     #[default = true]
     wendigo: bool,
 
-    /// Bikanel
+    /// Bikanel (after Sandragora skip)
     #[default = false]
     bikanel: bool,
 
