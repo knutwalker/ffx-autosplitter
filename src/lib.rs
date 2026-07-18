@@ -80,6 +80,9 @@ enum Splits {
     Guards,
     Bahamut,
     ViaPurifico,
+    Corridor,
+    Grothia,
+    Pterya,
     Isaaru,
     Natus,
     CalmLands,
@@ -347,9 +350,21 @@ pub struct Settings {
     #[default = true]
     bahamut: bool,
 
-    /// Via Purifico
+    /// Via Purifico, enter Corridor
     #[default = false]
     via_purifico: bool,
+
+    /// Via Purifico, finish Corridor
+    #[default = false]
+    vp_corridor: bool,
+
+    /// Defeated Grothia
+    #[default = false]
+    grothia: bool,
+
+    /// Defeated Pterya
+    #[default = false]
+    pterya: bool,
 
     /// Isaaru
     #[default = true]
@@ -642,6 +657,9 @@ impl Settings {
             guards,
             bahamut,
             via_purifico,
+            vp_corridor,
+            grothia,
+            pterya,
             isaaru,
             natus,
             calm_lands,
@@ -772,6 +790,9 @@ impl Settings {
             Splits::Guards => guards,
             Splits::Bahamut => bahamut,
             Splits::ViaPurifico => via_purifico,
+            Splits::Corridor => vp_corridor,
+            Splits::Grothia => grothia,
+            Splits::Pterya => pterya,
             Splits::Isaaru => isaaru,
             Splits::Natus => natus,
             Splits::CalmLands => calm_lands,
@@ -1710,6 +1731,18 @@ impl Progress {
     const YU_YEVON: u32 = 3380;
 
     fn split_battle(self, battle_state: Pair<BattleState>, read: &mut Read<'_>) -> Splitter {
+        let mut is_encounter = |map_id, id1, id2| -> bool {
+            return Self::is_encounter(read, map_id, id1, id2);
+        };
+
+        if self.0 == Self::ISAARU {
+            if battle_state.changed_to(&BattleState(BattleState::ONGOING)) {
+                if is_encounter(54, 2, 0) {
+                    return ControlFlow::Break(Splits::Corridor);
+                }
+            }
+        }
+
         if battle_state.is_over() == false {
             return NO_SPLIT;
         }
@@ -1717,10 +1750,6 @@ impl Progress {
         if battle_state.escaped() && self.0 != Self::CHOCOBO_EATER {
             return NO_SPLIT;
         }
-
-        let mut is_encounter = |map_id, id1, id2| -> bool {
-            return Self::is_encounter(read, map_id, id1, id2);
-        };
 
         ControlFlow::Break(match self.0 {
             Self::AMMES => Splits::Ammes,
@@ -1762,6 +1791,8 @@ impl Progress {
             #[cfg(testing)]
             Self::GUARDS if is_encounter(53, 0, 1) => Splits::Guards2,
             Self::GUARDS if is_encounter(53, 0, 2) => Splits::Guards,
+            Self::ISAARU if is_encounter(54, 2, 0) => Splits::Grothia,
+            Self::ISAARU if is_encounter(54, 2, 1) => Splits::Pterya,
             Self::ISAARU if is_encounter(54, 2, 2) => Splits::Isaaru,
             #[cfg(testing)]
             Self::ISAARU if is_encounter(55, 1, 0) => Splits::Altana,
