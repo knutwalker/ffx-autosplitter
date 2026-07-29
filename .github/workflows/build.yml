@@ -17,7 +17,9 @@ jobs:
       contents: write
     steps:
       - name: Checkout Commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          force-depth: 0
 
       - name: Install Rust
         uses: hecrj/setup-rust-action@v2
