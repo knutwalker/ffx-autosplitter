@@ -86,6 +86,7 @@ enum Splits {
     Pterya,
     Isaaru,
     Natus,
+    ChocoboTrainer,
     CalmLands,
     BiranYenke,
     Flux,
@@ -94,6 +95,9 @@ enum Splits {
     Tetris,
     SpectralKeeper,
     Yunalesca,
+    Yeehaw,
+    LeftFin,
+    RightFin,
     Core,
     Overdrive,
     Omnis,
@@ -379,6 +383,10 @@ pub struct Settings {
     #[default = true]
     natus: bool,
 
+    /// Talking to the Chocobo Trainer
+    #[default = false]
+    chocobo_trainer: bool,
+
     /// Calm Lands
     #[default = false]
     calm_lands: bool,
@@ -410,6 +418,18 @@ pub struct Settings {
     /// Yunalesca
     #[default = true]
     yunalesca: bool,
+
+    /// Airhsip Story Time
+    #[default = false]
+    yeehaw: bool,
+
+    /// Left Sin Fin
+    #[default = false]
+    left_fin: bool,
+
+    /// Right Sin Fin
+    #[default = false]
+    right_fin: bool,
 
     /// Sin Core
     #[default = true]
@@ -668,6 +688,7 @@ impl Settings {
             pterya,
             isaaru,
             natus,
+            chocobo_trainer,
             calm_lands,
             biran_yenke,
             flux,
@@ -676,6 +697,9 @@ impl Settings {
             tetris,
             spectral_keeper,
             yunalesca,
+            yeehaw,
+            left_fin,
+            right_fin,
             core,
             overdrive,
             omnis,
@@ -802,6 +826,7 @@ impl Settings {
             Splits::Pterya => pterya,
             Splits::Isaaru => isaaru,
             Splits::Natus => natus,
+            Splits::ChocoboTrainer => chocobo_trainer,
             Splits::CalmLands => calm_lands,
             Splits::BiranYenke => biran_yenke,
             Splits::Flux => flux,
@@ -810,6 +835,9 @@ impl Settings {
             Splits::Tetris => tetris,
             Splits::SpectralKeeper => spectral_keeper,
             Splits::Yunalesca => yunalesca,
+            Splits::Yeehaw => yeehaw,
+            Splits::LeftFin => left_fin,
+            Splits::RightFin => right_fin,
             Splits::Core => core,
             Splits::Overdrive => overdrive,
             Splits::Omnis => omnis,
@@ -1561,10 +1589,12 @@ impl Level {
     const MACALNIA_LAKE_SHOP: u32 = 164;
     #[cfg(testing)]
     const CREVASSE: u32 = 192;
+    const AIRSHIP_BATTLE: u32 = 199;
     #[cfg(testing)]
     const HIGHBRIDGE: u32 = 208;
     #[cfg(testing)]
     const VIA_UNDERWATER: u32 = 209;
+    const AIRSHIP_INSIDE: u32 = 211;
     const STADIUM_POOL: u32 = 212;
     const HOME_ENVIRONMENT_CONTROLS: u32 = 219;
     const MACALANIA_SPRING: u32 = 221;
@@ -1577,6 +1607,7 @@ impl Level {
     #[cfg(testing)]
     const MACALANIA_SPHERIMORPH: u32 = 248;
     const STADIUM_STANDS: u32 = 250;
+    const AIRSHIP_OUTSIDE: u32 = 277;
     const CALM_LANDS_BRIDGE: u32 = 279;
     const HOME_MAIN_CORRIDOR: u32 = 280;
     const BEVELLE_TRIALS: u32 = 306;
@@ -1635,8 +1666,16 @@ impl Level {
             #[cfg(testing)]
             (Self::VIA_UNDERWATER, Self::HIGHBRIDGE) => Splits::ViaUnderwater, // story = 2220,
             (Self::CALM_LANDS, Self::CALM_LANDS_BRIDGE) => Splits::CalmLands, // story = 2400
+            (Self::AIRSHIP_INSIDE | Self::AIRSHIP_OUTSIDE, Self::AIRSHIP_BATTLE)
+                if read
+                    .story_progression()
+                    .map(|p| p.0)
+                    .either(Progress::FINAL_SHOWDOWN) =>
+            {
+                Splits::Yeehaw
+            }
             (Self::ZANARKAND_ROAD, Self::ZANARKAND_DOME) => Splits::Zanarkand, // stgory = 2767
-            (Self::NUCLEUS, Self::DREAMS_END) => Splits::Eggs,                // story == 3260
+            (Self::NUCLEUS, Self::DREAMS_END) => Splits::Eggs,                 // story == 3260
             #[cfg(testing)]
             (from, to) if from != to && Self::in_game(from) && Self::in_game(to) => {
                 Splits::LevelSplit
@@ -1724,7 +1763,6 @@ impl Progress {
     const GUARDS: u32 = 2080;
     const ISAARU: u32 = 2220;
     const NATUS: u32 = 2280;
-    #[cfg(testing)]
     const DEFENDER: u32 = 2400;
     const BIRAN_YENKE: u32 = 2510;
     const FLUX: u32 = 2530;
@@ -1732,6 +1770,8 @@ impl Progress {
     const TETRIS: u32 = 2767;
     const SPECTRAL_KEEPER: u32 = 2775;
     const YUNALESCA: u32 = 2815;
+    const FINAL_SHOWDOWN: u32 = 3010;
+    const SINS_FINS: u32 = 3085;
     const SIN_CORE: u32 = 3105;
     const OVERDRIVE_SIN: u32 = 3135;
     const OMNIS: u32 = 3205;
@@ -1818,6 +1858,8 @@ impl Progress {
             Self::SANCTUARY_KEEPER if is_encounter(68, 0, 0) => Splits::SanctuaryKeeper,
             Self::SPECTRAL_KEEPER => Splits::SpectralKeeper,
             Self::YUNALESCA => Splits::Yunalesca,
+            Self::SINS_FINS if is_encounter(73, 0, 0) => Splits::LeftFin,
+            Self::SINS_FINS if is_encounter(74, 0, 0) => Splits::RightFin,
             Self::SIN_CORE => Splits::Core,
             Self::OVERDRIVE_SIN => Splits::Overdrive,
             Self::OMNIS if is_encounter(78, 0, 0) => Splits::Omnis,
@@ -1832,6 +1874,12 @@ impl Progress {
                 if Self::is_encounter(read, 54, 1, 0) {
                     return ControlFlow::Break(Splits::ViaPurifico);
                 }
+            }
+        }
+
+        if self.0 == Self::DEFENDER {
+            if read.cutscene_type().changed_to(&4023) {
+                return ControlFlow::Break(Splits::ChocoboTrainer);
             }
         }
 
