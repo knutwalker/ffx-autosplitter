@@ -9,7 +9,7 @@ asr = { git = "https://github.com/LiveSplit/asr", features = [
     "derive",
     "signature",
     "integer-vars",
-], rev="df73b99f7623fe952b8c008f01a5cd241587d5cd" }
+], rev="a7ecee85abad7263bfa2150d3821f3d2ea69fe84" }
 bytemuck = { version = "1", features = ["derive", "min_const_generics"] }
 num_enum = { version = "0.7.3", default-features = false }
 strum = { version = "0.27.2", default-features = false, features = ["derive"] }
