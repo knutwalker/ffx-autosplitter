@@ -3,7 +3,7 @@
 use asr::{
     Address, Process,
     deep_pointer::DeepPointer,
-    future::{next_tick, retry},
+    future::next_tick,
     settings::{Gui, gui::Title as Heading},
     signature::Signature,
     timer::{self, TimerState},
@@ -12,7 +12,7 @@ use asr::{
 use bytemuck::CheckedBitPattern;
 #[cfg(testing)]
 use bytemuck::checked;
-use core::{fmt, iter, ops::ControlFlow};
+use core::{fmt, ops::ControlFlow};
 use num_enum::IntoPrimitive;
 use strum::{EnumIter, IntoEnumIterator as _};
 
@@ -1021,7 +1021,7 @@ async fn main() {
     };
 
     loop {
-        retry(|| state.try_connect()).await;
+        state.try_connect_loop().await;
         state.connected_loop().await;
     }
 }
@@ -1061,9 +1061,9 @@ impl Action {
 }
 
 impl State<'_> {
-    fn try_connect(&mut self) -> Option<()> {
-        if self.game.is_none() {
-            if let Some(base_address) = find_process() {
+    async fn try_connect_loop(&mut self) {
+        while self.game.is_none() {
+            if let Some(base_address) = wait_find_process().await {
                 log!("attached to process");
                 let memory = Memory::new(&base_address);
                 let game = Game {
@@ -1071,9 +1071,11 @@ impl State<'_> {
                     memory,
                 };
                 self.game = Some(game);
+                return;
+            } else {
+                next_tick().await;
             }
         }
-        return self.game.as_ref().map(|_| ());
     }
 
     async fn connected_loop(&mut self) {
@@ -1462,35 +1464,45 @@ enum UseSplit {
     Ignore,
 }
 
-fn find_process() -> Option<BaseAddress> {
-    let process = Process::attach("FFX.exe")?;
-    let start = find_entry_point(&process)?;
-    log!("Found main module at {}", start);
-    return Some(BaseAddress { process, start });
+const SIG: Signature<8> = Signature::new("58 0E 00 00 E9 00 00 00");
+
+async fn wait_find_process() -> Option<BaseAddress> {
+    log!("trying to connect to game");
+    let process = Process::wait_attach("FFX.exe").await;
+    log!("connected to game, trying to get module range");
+    let module = process.wait_module_range("FFX.exe").await;
+    log!(
+        "found main module at {:0x} with size {}, trying to find entry_point",
+        module.0.value(),
+        module.1
+    );
+    let entry_points = SIG.scan_iter(&process, module);
+    find_entry_point(module.0, entry_points)
+        .await
+        .then(|| BaseAddress {
+            process,
+            start: module.0,
+        })
 }
 
-fn find_entry_point(process: &Process) -> Option<Address> {
-    let main_module = process.get_module_range("FFX.exe").ok()?;
-    let sig = Signature::<8>::new("58 0E 00 00 E9 00 00 00");
-
-    let ranges = process.memory_ranges();
-    let ranges = iter::once(main_module).chain(ranges.filter_map(|r| r.range().ok()));
-
-    for module in ranges {
-        if let Some(entry_point) = sig.scan_process_range(process, module) {
+async fn find_entry_point(base: Address, entry_points: impl Iterator<Item = Address>) -> bool {
+    for entry_point in entry_points {
+        let entry_point = entry_point.value().saturating_sub(base.value());
+        log!("Testing potential entry_point at {:0x}", entry_point);
+        if entry_point == 0x5493c8 {
             log!(
-                "Potential main module at {} with size {}",
-                module.0,
-                module.1
+                "Found entry point {:0x}, main module is at {:0x}",
+                entry_point,
+                base.value(),
             );
-            let entry_point = entry_point.value().saturating_sub(module.0.value());
-            if entry_point == 0x5493c8 {
-                return Some(module.0);
-            }
+            timer::set_variable("encounter_count", "");
+            return true;
         }
+        next_tick().await;
     }
-
-    return None;
+    log!("No entry point found, trying to reconnect");
+    timer::set_variable("encounter_count", "Error: restart either FFX or LiveSplit");
+    return false;
 }
 
 struct BaseAddress {
