@@ -1881,6 +1881,12 @@ impl Progress {
     }
 
     fn split_advance(self, old: Self, read: &mut Read<'_>) -> Splitter {
+        if self.0 == Self::LAGOON {
+            if read.cutscene_type().changed_to(&73) {
+                return ControlFlow::Break(Splits::Lagoon);
+            }
+        }
+
         if self.0 == Self::ISAARU {
             if read.cutscene_type().changed_to(&257) {
                 if Self::is_encounter(read, 54, 1, 0) {
