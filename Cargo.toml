@@ -19,7 +19,6 @@ crate-type = ["cdylib"]
 
 [profile.release]
 lto = true
-panic = "abort"
 codegen-units = 1
 strip = true
 

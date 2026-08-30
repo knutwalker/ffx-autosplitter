@@ -19,7 +19,7 @@ use strum::{EnumIter, IntoEnumIterator as _};
 mod enum_set;
 
 asr::async_main!(stable);
-asr::panic_handler!();
+asr::panic_handler!(print: always, buffer: 8192);
 
 #[macro_export]
 macro_rules! log {
