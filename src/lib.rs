@@ -1464,7 +1464,7 @@ enum UseSplit {
     Ignore,
 }
 
-const SIG: Signature<8> = Signature::new("58 0E 00 00 E9 00 00 00");
+const SIG: Signature<11> = Signature::new("C3 E8 5E 0E 00 00 E9 00 00 00 00");
 
 async fn wait_find_process() -> Option<BaseAddress> {
     log!("trying to connect to game");
@@ -1489,7 +1489,7 @@ async fn find_entry_point(base: Address, entry_points: impl Iterator<Item = Addr
     for entry_point in entry_points {
         let entry_point = entry_point.value().saturating_sub(base.value());
         log!("Testing potential entry_point at {:0x}", entry_point);
-        if entry_point == 0x5493c8 {
+        if entry_point == 0x5493c0 {
             log!(
                 "Found entry point {:0x}, main module is at {:0x}",
                 entry_point,
@@ -1993,7 +1993,7 @@ struct Memory {
     encounter_counter: DeepPointer<1>,
     current_level: DeepPointer<1>,
     story_progression: DeepPointer<1>,
-    battle_state: DeepPointer<2>,
+    battle_state: DeepPointer<1>,
     cutscene_type: DeepPointer<1>,
     map_id: DeepPointer<1>,
     formation_id: DeepPointer<1>,
@@ -2017,16 +2017,16 @@ struct Memory {
 impl Memory {
     fn new(base: &BaseAddress) -> Memory {
         return Memory {
-            is_loading: DeepPointer::new_32bit(base.start, &[0x8CC898, 0x123A4]),
+            is_loading: DeepPointer::new_32bit(base.start, &[0x8CC8A0, 0x123A4]),
             encounter_counter: DeepPointer::new_32bit(base.start, &[0xD307A4]),
             current_level: DeepPointer::new_32bit(base.start, &[0x8CB990]),
             story_progression: DeepPointer::new_32bit(base.start, &[0x84949C]),
-            battle_state: DeepPointer::new_32bit(base.start, &[0x390D90, 0x4]),
+            battle_state: DeepPointer::new_32bit(base.start, &[0xD2C9F0]),
             cutscene_type: DeepPointer::new_32bit(base.start, &[0xD27C88]),
             map_id: DeepPointer::new_32bit(base.start, &[0xD2C256]),
             formation_id: DeepPointer::new_32bit(base.start, &[0xD2C258]),
             yu_yevon: DeepPointer::new_32bit(base.start, &[0xD2A8E8]),
-            hp_enemy_a: DeepPointer::new_32bit(base.start, &[0xD34460, 0x5D0]),
+            hp_enemy_a: DeepPointer::new_32bit(base.start, &[0xD34468, 0x5D0]),
             cursor_position: DeepPointer::new_32bit(base.start, &[0x1467808]),
             input: DeepPointer::new_32bit(base.start, &[0x8CB170]),
             select_screen: DeepPointer::new_32bit(base.start, &[0xF25B30]),
