@@ -1063,7 +1063,7 @@ impl Action {
 impl State<'_> {
     async fn try_connect_loop(&mut self) {
         while self.game.is_none() {
-            if let Some(base_address) = wait_find_process().await {
+            if let Some(base_address) = BaseAddress::find().await {
                 log!("attached to process");
                 let memory = Memory::new(&base_address);
                 let game = Game {
@@ -1464,50 +1464,78 @@ enum UseSplit {
     Ignore,
 }
 
-const SIG: Signature<11> = Signature::new("C3 E8 5E 0E 00 00 E9 00 00 00 00");
-
-async fn wait_find_process() -> Option<BaseAddress> {
-    log!("trying to connect to game");
-    let process = Process::wait_attach("FFX.exe").await;
-    log!("connected to game, trying to get module range");
-    let module = process.wait_module_range("FFX.exe").await;
-    log!(
-        "found main module at {:0x} with size {}, trying to find entry_point",
-        module.0.value(),
-        module.1
-    );
-    let entry_points = SIG.scan_iter(&process, module);
-    find_entry_point(module.0, entry_points)
-        .await
-        .then(|| BaseAddress {
-            process,
-            start: module.0,
-        })
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum GameVersion {
+    V1,
+    V2,
 }
 
-async fn find_entry_point(base: Address, entry_points: impl Iterator<Item = Address>) -> bool {
-    for entry_point in entry_points {
-        let entry_point = entry_point.value().saturating_sub(base.value());
-        log!("Testing potential entry_point at {:0x}", entry_point);
-        if entry_point == 0x5493c0 {
-            log!(
-                "Found entry point {:0x}, main module is at {:0x}",
-                entry_point,
-                base.value(),
-            );
-            timer::set_variable("encounter_count", "");
-            return true;
+impl GameVersion {
+    const SIG1: Signature<8> = Signature::new("58 0E 00 00 E9 00 00 00");
+    const SIG2: Signature<11> = Signature::new("C3 E8 5E 0E 00 00 E9 00 00 00 00");
+
+    async fn find(process: &Process, module: (Address, u64)) -> Option<Self> {
+        for (version, entry_point) in Self::scan(process, module) {
+            let entry_point = entry_point.value().saturating_sub(module.0.value());
+            log!("Testing potential entry_point at {:0x}", entry_point);
+            if entry_point == version.entry_point() {
+                log!(
+                    "Found entry point {:0x}, main module is at {:0x}, game version is {:?}",
+                    entry_point,
+                    module.0.value(),
+                    version,
+                );
+                timer::set_variable("encounter_count", "");
+                return Some(version);
+            }
+            next_tick().await;
         }
-        next_tick().await;
+        log!("No entry point found, trying to reconnect");
+        timer::set_variable("encounter_count", "Error: restart either FFX or LiveSplit");
+        return None;
     }
-    log!("No entry point found, trying to reconnect");
-    timer::set_variable("encounter_count", "Error: restart either FFX or LiveSplit");
-    return false;
+
+    fn scan(process: &Process, module: (Address, u64)) -> impl Iterator<Item = (Self, Address)> {
+        Self::SIG1
+            .scan_iter(process, module)
+            .map(|a| (Self::V1, a))
+            .chain(Self::SIG2.scan_iter(process, module).map(|a| (Self::V2, a)))
+    }
+
+    const fn entry_point(self) -> u64 {
+        match self {
+            Self::V1 => 0x5493c8,
+            Self::V2 => 0x5493c0,
+        }
+    }
 }
 
 struct BaseAddress {
     process: Process,
     start: Address,
+    version: GameVersion,
+}
+
+impl BaseAddress {
+    async fn find() -> Option<Self> {
+        log!("trying to connect to game");
+        let process = Process::wait_attach("FFX.exe").await;
+        log!("connected to game, trying to get module range");
+        let module = process.wait_module_range("FFX.exe").await;
+        log!(
+            "found main module at {:0x} with size {}, trying to find entry_point",
+            module.0.value(),
+            module.1
+        );
+
+        GameVersion::find(&process, module)
+            .await
+            .map(|version| BaseAddress {
+                process,
+                start: module.0,
+                version,
+            })
+    }
 }
 
 type Splitter = ControlFlow<Splits, Action>;
@@ -1993,7 +2021,7 @@ struct Memory {
     encounter_counter: DeepPointer<1>,
     current_level: DeepPointer<1>,
     story_progression: DeepPointer<1>,
-    battle_state: DeepPointer<1>,
+    battle_state: DeepPointer<2>,
     cutscene_type: DeepPointer<1>,
     map_id: DeepPointer<1>,
     formation_id: DeepPointer<1>,
@@ -2016,28 +2044,40 @@ struct Memory {
 
 impl Memory {
     fn new(base: &BaseAddress) -> Memory {
+        let loading_p = match base.version {
+            GameVersion::V1 => 0x8CC898,
+            GameVersion::V2 => 0x8CC8A0,
+        };
+        let battle_state_p: &[u64] = match base.version {
+            GameVersion::V1 => &[0x390D90, 0x4],
+            GameVersion::V2 => &[0xD2C9F0],
+        };
+        let monsters_p = match base.version {
+            GameVersion::V1 => 0xD34460,
+            GameVersion::V2 => 0xD34468,
+        };
         return Memory {
-            is_loading: DeepPointer::new_32bit(base.start, &[0x8CC8A0, 0x123A4]),
+            is_loading: DeepPointer::new_32bit(base.start, &[loading_p, 0x123A4]),
             encounter_counter: DeepPointer::new_32bit(base.start, &[0xD307A4]),
             current_level: DeepPointer::new_32bit(base.start, &[0x8CB990]),
             story_progression: DeepPointer::new_32bit(base.start, &[0x84949C]),
-            battle_state: DeepPointer::new_32bit(base.start, &[0xD2C9F0]),
+            battle_state: DeepPointer::new_32bit(base.start, battle_state_p),
             cutscene_type: DeepPointer::new_32bit(base.start, &[0xD27C88]),
             map_id: DeepPointer::new_32bit(base.start, &[0xD2C256]),
             formation_id: DeepPointer::new_32bit(base.start, &[0xD2C258]),
             yu_yevon: DeepPointer::new_32bit(base.start, &[0xD2A8E8]),
-            hp_enemy_a: DeepPointer::new_32bit(base.start, &[0xD34468, 0x5D0]),
+            hp_enemy_a: DeepPointer::new_32bit(base.start, &[monsters_p, 0x5D0]),
             cursor_position: DeepPointer::new_32bit(base.start, &[0x1467808]),
             input: DeepPointer::new_32bit(base.start, &[0x8CB170]),
             select_screen: DeepPointer::new_32bit(base.start, &[0xF25B30]),
             #[cfg(testing)]
             loading_slot: DeepPointer::new_32bit(base.start, &[0x8E72DC]),
             #[cfg(testing)]
-            hp_enemy_b: DeepPointer::new_32bit(base.start, &[0xD34460, 0x1560]),
+            hp_enemy_b: DeepPointer::new_32bit(base.start, &[monsters_p, 0x1560]),
             #[cfg(testing)]
-            hp_enemy_c: DeepPointer::new_32bit(base.start, &[0xD34460, 0x24F0]),
+            hp_enemy_c: DeepPointer::new_32bit(base.start, &[monsters_p, 0x24F0]),
             #[cfg(testing)]
-            hp_enemy_d: DeepPointer::new_32bit(base.start, &[0xD34460, 0x3480]),
+            hp_enemy_d: DeepPointer::new_32bit(base.start, &[monsters_p, 0x3480]),
             #[cfg(testing)]
             igt: DeepPointer::new_32bit(base.start, &[0xD2CB4C]),
         };
