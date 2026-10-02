@@ -2056,6 +2056,14 @@ impl Memory {
             GameVersion::V1 => 0xD34460,
             GameVersion::V2 => 0xD34468,
         };
+        let cursor_pos = match base.version {
+            GameVersion::V1 => 0x1467808,
+            GameVersion::V2 => 0x1467848,
+        };
+        let select_screen = match base.version {
+            GameVersion::V1 => 0xF25B30,
+            GameVersion::V2 => 0xF25B70,
+        };
         return Memory {
             is_loading: DeepPointer::new_32bit(base.start, &[loading_p, 0x123A4]),
             encounter_counter: DeepPointer::new_32bit(base.start, &[0xD307A4]),
@@ -2067,9 +2075,9 @@ impl Memory {
             formation_id: DeepPointer::new_32bit(base.start, &[0xD2C258]),
             yu_yevon: DeepPointer::new_32bit(base.start, &[0xD2A8E8]),
             hp_enemy_a: DeepPointer::new_32bit(base.start, &[monsters_p, 0x5D0]),
-            cursor_position: DeepPointer::new_32bit(base.start, &[0x1467808]),
+            cursor_position: DeepPointer::new_32bit(base.start, &[cursor_pos]),
             input: DeepPointer::new_32bit(base.start, &[0x8CB170]),
-            select_screen: DeepPointer::new_32bit(base.start, &[0xF25B30]),
+            select_screen: DeepPointer::new_32bit(base.start, &[select_screen]),
             #[cfg(testing)]
             loading_slot: DeepPointer::new_32bit(base.start, &[0x8E72DC]),
             #[cfg(testing)]
